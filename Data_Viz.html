@@ -1,0 +1,2140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>US Chronic Disease Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap");
+    </style>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://unpkg.com/leaflet-mapbox-gl@0.53.1/Leaflet.MapboxGL.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/wkx@0.5.0/dist/wkx.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <style>
+      body {
+        font-family: "Roboto", "Arial", sans-serif;
+      }
+      #map {
+        height: 600px;
+        background-color: rgb(9 9 9);
+      }
+      .data-value {
+        color: white;
+        fill: white;
+      }
+      .data-label {
+        color: white;
+        fill: white;
+      }
+      .page-title {
+        font-weight: bold;
+        text-align: center; /* Centers the title on the page */
+        margin-top: 48px;
+        color: white; /* Title color */
+      }
+      .container-fluid {
+        background-color: rgb(9 9 9);
+        color: white;
+      }
+      .leaflet-container .leaflet-control-attribution {
+        background: rgb(9 9 9);
+      }
+      .chart-title {
+        font-weight: bold; /* Bold weight for importance */
+        color: #f0f0f0; /* Light color to contrast on dark backgrounds */
+        fill: white;
+        text-align: center; /* Center-align title above the map */
+        margin-bottom: 25px; /* Space between title and map */
+        letter-spacing: 0.5px; /* Slight spacing for readability */
+      }
+      .chart-subheading {
+        font-size: 12px;
+        font-style: italic;
+        fill: gray;
+      }
+      .chart-description {
+        color: #ffffffce;
+      }
+      #legend-container {
+        font-size: small;
+        margin-top: 15px;
+        margin-bottom: 32px;
+        display: flex;
+        justify-content: flex-end;
+      }
+      .legend {
+        margin-right: 32px;
+        font-size: small;
+        fill: white;
+      }
+      .axis-label {
+        fill: white;
+        font-size: 15px;
+      }
+      .x-axis-tick {
+        fill: white;
+        font-size: 12px;
+      }
+      .x-axis-tick .domain {
+        fill: none;
+      }
+      .y-axis-tick {
+        fill: white;
+        font-size: 12px;
+      }
+      .y-axis-tick .domain {
+        fill: none;
+      }
+      .container-fluid {
+        padding-left: 48px;
+        padding-right: 48px;
+      }
+      .row {
+        margin-bottom: 80px;
+      }
+
+      .map-para {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        text-align: justify;
+      }
+      #data-source {
+        position: absolute;
+        bottom: 0px;
+        margin-right: 0px;
+        padding: 10px;
+        border-top: 2px dotted grey;
+        max-width: 240px;
+        overflow-wrap: break-word;
+        font-size: x-small;
+      }
+      .custom-muted-link {
+        color: #6c757d; /* Bootstrap's muted color */
+        text-decoration: none;
+      }
+      .custom-muted-link:hover {
+        color: #5a6268; /* Slightly darker on hover */
+      }
+      #loadingOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 24px;
+        z-index: 1000;
+        display: none; /* Initially hidden */
+      }
+    </style>
+  </head>
+  <body style="background-color: rgb(9 9 9)">
+    <!-- Loading overlay -->
+    <div id="loadingOverlay">Loading, please wait...</div>
+    <div class="container-fluid">
+      <div class="row">
+        <h1 class="page-title">
+          The Interplay of Physical Activity, Dietary Habits, and Chronic
+          Disease Across Demographics
+        </h1>
+      </div>
+
+      <div class="row">
+        <div class="col-lg-7">
+          <h3 class="chart-title">
+            Chronic Disease Burden across States in US
+          </h3>
+          <div id="map"></div>
+        </div>
+
+        <div class="col-lg-5">
+          <div id="filter-container" style="display: none">
+            <label for="disease-select">Select Disease:</label>
+            <select id="disease-select">
+              <option value="COPD">COPD</option>
+              <option value="Cardiovascular Disease">
+                Cardiovascular Disease
+              </option>
+              <option value="Arthritis">Arthritis</option>
+              <option value="Kidney">Kidney Disease</option>
+            </select>
+          </div>
+          <div id="radial-bar-chart"></div>
+          <div class="map-para">
+            <p id="map-description" class="chart-description">
+              The map illustrates the prevalence of chronic diseases across U.S.
+              states, highlighting a concentration of higher rates in the
+              central and southern regions.<br />
+              <br />
+              <span style="font-weight: bold">Click on a state</span> to explore
+              how chronic disease prevalence varies by demographics.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-lg-12">
+          <h3 class="chart-title">
+            Prevalence of Chronic Diseases in States with the Highest Disease
+            Burden
+          </h3>
+          <div id="grp_state"></div>
+          <div id="legend-container"></div>
+          <div class="col-lg-12">
+            <p class="chart-description">
+              Notably, arthritis exhibits the highest prevalence, followed
+              closely by depression, COPD, cardiovascular disease, and chronic
+              kidney disease. Alarmingly, all top-10 states surpass the national
+              median prevalence rates, highlighting a significant public health
+              concern. West Virginia stands out with the highest prevalence for
+              all chronic diseases, emphasizing the urgent need for targeted
+              health interventions in these areas.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-lg-12">
+          <h2 class="chart-title">
+            Impact of Income on Physical Activity and Dietary Habits Across Top
+            U.S. States
+          </h2>
+        </div>
+        <div class="col-lg-6"><div id="physheatmap"></div></div>
+        <div class="col-lg-6"><div id="vegheatmap"></div></div>
+        <div class="col-lg-12">
+          <p class="chart-description">
+            The heatmaps reveal a clear correlation between income groups and
+            health behaviors. As we progress toward higher income brackets,
+            physical activity levels increase significantly. In contrast, fruit
+            and vegetable consumption reflects a troubling trend: individuals in
+            lower income groups are more likely to consume fruits and vegetables
+            less than once a day. When you hover over the heatmaps, you’ll
+            notice that West Virginia, which has the highest prevalence of
+            chronic diseases among the top ten states, contrasts sharply with
+            Maine, where the disease prevalence is the lowest. This highlights a
+            crucial insight: higher physical activity rates in Maine coincide
+            with a lower proportion of people consuming fewer than one fruit or
+            vegetable daily. This pattern underscores the profound impact of
+            income on both health outcomes and regional health disparities
+          </p>
+        </div>
+      </div>
+      <div class="row">
+        <h3 class="chart-title">Chronic Disease Prevelance from 2018-2021</h3>
+        <div class="col-lg-8"><div id="time-series"></div></div>
+        <div class="col-lg-4">
+          <div class="map-para">
+            <p class="chart-description">
+              Over the period from 2018 to 2021, the prevalence of chronic
+              diseases remained relatively stable. Arthritis consistently
+              displayed the highest prevalence, followed closely by depression,
+              COPD, cardiovascular disease, and kidney disease. This stability
+              highlights a persistent burden of these conditions on the
+              population, underscoring the need for continued attention and
+              resources to address these chronic health challenges.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div></div>
+        <div class="text-center custom-muted-link small mt-3">
+          Data sources:<br /><a
+            href="https://data.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-Place-Data-202/q8ig-wwk9/about_data"
+            class="custom-muted-link"
+          >
+            PLACES: Local Data for Better Health, 2021</a
+          >
+          <br />
+          <a
+            href="https://data.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-Place-Data-202/epbn-9bv3/about_data"
+            class="custom-muted-link"
+            >PLACES: Local Data for Better Health, 2022</a
+          >
+          <br />
+          <a
+            href="https://data.cdc.gov/500-Cities-Places/PLACES-Local-Data-for-Better-Health-Place-Data-202/eav7-hnsx/about_data"
+            class="custom-muted-link"
+            >PLACES: Local Data for Better Health, 2023</a
+          >
+          <br />
+          <a
+            href="https://data.cdc.gov/Nutrition-Physical-Activity-and-Obesity/Nutrition-Physical-Activity-and-Obesity-Behavioral/hn4x-zwk7/about_data"
+            class="custom-muted-link"
+            >Nutrition, Physical Activity, and Obesity - Behavioral Risk Factor
+            Surveillance System (BRFSS),2023</a
+          >
+          <br />
+          <a
+            href="https://catalog.data.gov/dataset/2022-cartographic-boundary-file-shp-united-states-1-20000000"
+            class="custom-muted-link"
+            >2022 Cartographic Boundary File (SHP), United States</a
+          >
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Initialize the map
+      const map = L.map("map", {
+        maxBounds: [
+          [24.396308, -125.0], // Southwest corner (USA)
+          [49.384358, -66.93457], // Northeast corner (USA)
+        ],
+        maxBoundsViscosity: 1.0, // Prevents panning outside the bounds
+        zoomControl: false, // Disable zoom control
+        scrollWheelZoom: false, // Disable zoom with mouse wheel
+        doubleClickZoom: false,
+      }).setView([37.8, -96], 3.5);
+
+      // Add a basemap layer
+      L.tileLayer(
+        "https://api.mapbox.com/styles/v1/mpat0063/cm00r1ub1008q01pwap8h0cc2.html?title=copy&access_token=pk.eyJ1IjoibXBhdDAwNjMiLCJhIjoiY20wMHFkZmhwMW9ldjJycTQwMHR5MG1uaiJ9.cfybARKDRHtYL4-gLusHmQ&zoomwheel=true&fresh=true#3.36/43.94/-95.68",
+        {
+          attribution:
+            'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
+            'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+        }
+      ).addTo(map);
+    </script>
+
+    <script type="module">
+      var Buffer = require("buffer").Buffer;
+      var wkx = require("wkx");
+      const arrow = await import(
+        "https://cdn.jsdelivr.net/npm/apache-arrow@17.0.0/+esm"
+      );
+      // Import the parquet-wasm module dynamically
+      const parquet = await import(
+        "https://cdn.jsdelivr.net/npm/parquet-wasm@0.6.0/esm/+esm"
+      );
+
+      // function to display error messages on the screen
+      function displayErrorMessage(message) {
+        const errorDiv = document.createElement("div");
+        errorDiv.style.color = "red";
+        errorDiv.style.fontWeight = "bold";
+        errorDiv.style.margin = "20px";
+        errorDiv.style.padding = "10px";
+        errorDiv.style.border = "1px solid red";
+        errorDiv.style.backgroundColor = "#ffeeee";
+        errorDiv.textContent = message;
+
+        // Insert the error message at the top of the body
+        document.body.insertBefore(errorDiv, document.body.firstChild);
+      }
+      // Function to show the loading overlay
+      function showLoadingScreen() {
+        document.getElementById("loadingOverlay").style.display = "flex";
+      }
+
+      // Function to hide the loading overlay
+      function hideLoadingScreen() {
+        document.getElementById("loadingOverlay").style.display = "none";
+      }
+      let arrayBuffer;
+      async function fetchParquetFile() {
+        // Attempt to fetch the Parquet file
+        try {
+          showLoadingScreen();
+          arrayBuffer = await d3.buffer("Data.parquet");
+          // Hide the loading screen when the fetch is successful
+          hideLoadingScreen();
+          // Continue processing the data if the fetch is successful
+          console.log("Parquet file fetched successfully.");
+          return arrayBuffer;
+          // Additional processing code here...
+        } catch (error) {
+          // Check if the error is related to CORS and display a message on the screen
+          if (
+            error instanceof TypeError &&
+            error.message.includes("Failed to fetch")
+          ) {
+            hideLoadingScreen();
+            displayErrorMessage(
+              "CORS error: Unable to fetch the Data file. Please Run using Live Server"
+            );
+          }
+        }
+      }
+      arrayBuffer = fetchParquetFile();
+      function parseWKBToGeoJSON(binaryData) {
+        // WKB decoding: You can use a library such as `geobuf` or `jsts`
+        const wkbBuffer = Buffer.from(binaryData);
+        const geometry = wkx.Geometry.parse(wkbBuffer);
+
+        return geometry.toGeoJSON();
+      }
+      // Initialize the WASM environment
+      await parquet.default();
+
+      // Read the Parquet file into an Arrow Table
+      const wasmTable = parquet.readParquet(new Uint8Array(await arrayBuffer));
+
+      const tab = arrow.tableFromIPC(wasmTable.intoIPCStream());
+
+      const batches = tab.batches;
+
+      // Create a TextDecoder instance for decoding Uint8Arrays to strings
+      const textDecoder = new TextDecoder("utf-8");
+
+      // Iterate over each batch
+      batches.forEach((batch) => {
+        const children = batch.data.children;
+        // Iterate over the children array (which contains each column's data)
+        children.forEach((column, index) => {
+          // Check if this column is of type 'Utf8' (string data)
+          if (column.type && column.type.typeId === 5) {
+            // Utf8 TypeId
+            const { valueOffsets, values } = column;
+
+            // Decode each string based on the offsets
+            let decodedStrings = [];
+            for (let i = 0; i < valueOffsets.length - 1; i++) {
+              const start = valueOffsets[i];
+              const end = valueOffsets[i + 1];
+              const stringSlice = values.slice(start, end);
+              const decodedString = textDecoder.decode(stringSlice);
+              decodedStrings.push(decodedString);
+            }
+
+            // Replace the original values with the decoded strings
+            children[index].values = decodedStrings; // Store it back, or you can overwrite the values directly
+          }
+          if (column.type && column.type.typeId === 4) {
+            const { values, valueOffsets } = column;
+
+            // Decode the binary data for geometry column
+            let geometries = [];
+            for (let i = 0; i < valueOffsets.length - 1; i++) {
+              const start = valueOffsets[i];
+              const end = valueOffsets[i + 1];
+              const binaryData = values.slice(start, end);
+
+              // Parse WKB (Well-Known Binary) to GeoJSON
+              const geoJSON = parseWKBToGeoJSON(binaryData);
+              geometries.push(geoJSON);
+            }
+
+            // Store decoded geometries
+            children[index].values = geometries; // Store it back
+          }
+        });
+      });
+
+      // Initialize an empty array to store filtered results
+      let filteredResults = [];
+      // Loop through each batch
+      tab.batches.forEach((batch) => {
+        // Access the fields in the schema to understand the structure
+        const fields = batch.schema.fields;
+
+        // Get the children arrays (these are the column values)
+        const children = batch.data.children;
+
+        // Find the indexes of the 'Topic' fields
+        const TopicIndex = fields.findIndex((field) => field.name === "Topic");
+
+        // Access the arrays corresponding to 'Topic'
+        const TopicColumn = children[TopicIndex];
+
+        // Loop through rows by index
+        for (let i = 0; i < TopicColumn.length; i++) {
+          const topic = TopicColumn.values[i]; // Get the Topic value for the row
+
+          // Apply your filtering logic
+          if (topic === "DiseaseIndex") {
+            let rowData = {};
+
+            fields.forEach((field, index) => {
+              rowData[field.name] = children[index].values[i];
+            });
+
+            // Add the filtered row to the results
+            filteredResults.push(rowData);
+          }
+        }
+      });
+      // Define color scale
+      const map_colorScale = d3
+        .scaleQuantize()
+        .domain([149, 300]) // Define the range of your data Using inverse Scale as dark bg
+        .range(["#0868ac", "#43a2ca", "#7bccc4", "#bae4bc", "#f0f9e8"]); // Use a predefined color scheme
+
+      // Define color function using d3 color scale
+      function getColor(d) {
+        return map_colorScale(d); // Automatically map 'd' to a color from the colorScale
+      }
+
+      // Style each feature
+      function style(feature) {
+        return {
+          fillColor: getColor(feature.properties.Data_value),
+          weight: 1,
+          opacity: 1,
+          color: "black",
+          fillOpacity: 1,
+        };
+      }
+      // Reset Highlight
+      function resetHighlight(e) {
+        geojsonLayer.resetStyle(e.target);
+      }
+      //
+      // Highlight style for selected state
+      const highlightStyle = {
+        //fillColor: "#ff7800",
+        weight: 2,
+        opacity: 1,
+        color: "black",
+        fillOpacity: 0.7,
+      };
+
+      //  your batches are stored in a variable called 'data_batches'
+
+      function get_state_data(clicked_state, disease = "COPD") {
+        let filteredData = [];
+        // Loop through each batch and extract necessary information
+        tab.batches.forEach((batch) => {
+          // Get the children arrays (these are the column values)
+          const children = batch.data.children;
+
+          const state_Col = children[1]; //  index 0 is the 'State' column
+          const topic_Col = children[3]; //  index 1 is the 'Topic' column
+          const breakOut_Col = children[6]; //  index 2 is 'Break_Out'
+          const breakOutCategory_Col = children[7]; //  index 3 is 'Break_Out_Category'
+          const dataValue_Col = children[8]; //  index 4 is 'Data_value'
+          const response_Col = children[5]; //  index 5 is 'Response'
+
+          for (let i = 0; i < topic_Col.length; i++) {
+            const state = state_Col.values[i];
+            const topic = topic_Col.values[i];
+            const breakOut = breakOut_Col.values[i];
+            const breakOutCategory = breakOutCategory_Col.values[i];
+            const dataValue = dataValue_Col.values[i];
+            const response = response_Col.values[i];
+            // Filter data for the clicked state and 'COPD' topic, Response = 'Yes'
+            if (
+              topic === disease &&
+              response === "Yes" &&
+              state === clicked_state &&
+              !["Education Attained", "Overall"].includes(breakOutCategory)
+            ) {
+              filteredData.push({
+                breakOut,
+                breakOutCategory,
+                dataValue,
+              });
+            }
+          }
+        });
+        return filteredData;
+      }
+      let previouslyClickedState = null;
+      const selectedStateStyle = {
+        color: "white", // bright color for the border
+        weight: 3, // thicker border for emphasis
+        opacity: 1, // fully opaque border
+        //fillColor: "#ffcc80", // highlight fill color
+        fillOpacity: 1.5, // slightly transparent to show underlying map features
+      };
+
+      const otherStatesStyle = {
+        color: "#999", // neutral gray border
+        weight: 1, // thinner border
+        opacity: 0.5, // semi-transparent to avoid emphasis
+        fillColor: "#ddd", // neutral fill color
+        fillOpacity: 0.1, // more transparent for background effect
+      };
+      // Function to handle click event
+      function onEachFeature(feature, layer) {
+        // Add a click listener
+        layer.on({
+          click: function (e) {
+            let clicked_state = e.target.feature.properties.State;
+
+            // Check if this state was already clicked
+            if (previouslyClickedState === clicked_state) {
+              // Reset to normal opacity if clicking the same state again
+              geojsonLayer.eachLayer(function (layer) {
+                resetHighlight(layer);
+                //layer.setStyle({ opacity: 0.1 }); // Set normal opacity
+              });
+
+              previouslyClickedState = null; // Clear the state
+              d3.select("#radial-bar-chart").style("display", "none");
+              d3.select("#map-description").style("display", "block");
+              d3.select("#filter-container").style("display", "none");
+              return;
+            } else {
+              d3.select("#radial-bar-chart").style("display", "block");
+              d3.select("#map-description").style("display", "none");
+              d3.select("#filter-container").style("display", "block");
+              geojsonLayer.eachLayer(function (layer) {
+                resetHighlight(layer);
+                //layer.setStyle({ opacity: 0.1 }); // Set normal opacity
+              });
+              // Highlight the clicked state
+              geojsonLayer.eachLayer(function (layer) {
+                if (layer.feature.properties.State === clicked_state) {
+                  layer.setStyle(selectedStateStyle); // Keep clicked state opaque
+                } else {
+                  layer.setStyle(otherStatesStyle); // Reduce opacity of others
+                }
+              });
+              // Store the clicked state
+              previouslyClickedState = clicked_state;
+            }
+
+            const filter_option = document.getElementById("disease-select");
+            filter_option.value = "COPD";
+            function updateChart(clicked_state, selectedDisease) {
+              // Sample data filtered for 'COPD' and 'Yes' response with necessary fields
+              const filteredData = get_state_data(
+                clicked_state,
+                selectedDisease
+              );
+              // Select the filter section
+              const filterSection = document.getElementById("filter-container");
+
+              // Show the filter section
+              filterSection.style.display = "block";
+              const parent = document.getElementById("radial-bar-chart");
+              const width = parent.offsetWidth;
+              const height = 600;
+
+              const innerRadius = width / 10,
+                outerRadius = height / 3;
+              function calculatePercentiles(data) {
+                const values = data
+                  .map((d) => d.dataValue)
+                  .sort((a, b) => a - b);
+                const percentiles = [25, 50, 75];
+
+                return percentiles.map((p) => {
+                  const index = (p / 100) * (values.length - 1);
+                  const lowerIndex = Math.floor(index);
+                  const upperIndex = Math.ceil(index);
+                  return lowerIndex === upperIndex
+                    ? values[lowerIndex]
+                    : values[lowerIndex] +
+                        (index - lowerIndex) *
+                          (values[upperIndex] - values[lowerIndex]);
+                });
+              }
+
+              // Create a radial scale for the bars
+              const radialScale = d3
+                .scaleLinear()
+                .domain([0, d3.max(filteredData, (d) => d.dataValue)])
+                .range([innerRadius, outerRadius]);
+
+              const breakOut_order = [
+                "Male",
+                "Female",
+                "18-24",
+                "25-34",
+                "35-44",
+                "45-54",
+                "55-64",
+                "65+",
+                "Less than $15,000",
+                "$15,000 - $24,999",
+                "$25,000 - $34,999",
+                "$35,000 - $49,999",
+                "$50,000+",
+                "Asian",
+                "White",
+                "Hispanic",
+                "Black",
+                "American Indian or Alaskan Native",
+                "Multiracial",
+                "Native Hawaiian or other Pacific Islander",
+                "Other",
+              ];
+              // Create the x-axis scale for the bars, grouped by Break_Out
+              const angleScale = d3
+                .scaleBand()
+                .domain(breakOut_order)
+                .range([0, 2 * Math.PI])
+                .align(0);
+              // Create a color scale for Break_Out_Category
+              const colorScale = d3
+                .scaleOrdinal()
+                .domain([
+                  "Gender",
+                  "Race/Ethnicity",
+                  "Age Group",
+                  "Household Income",
+                ]) // Explicitly set categories
+                .range(["#a6cee3", "#1f78b4", "#b2df8a", "#33a02c"]); // Assign each category a fixed color
+              d3.select("#radial-bar-chart").html("");
+              // Create an SVG container
+              const svg = d3
+                .select("#radial-bar-chart")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", `translate(${width / 2},${height / 2})`);
+
+              // Group the bars by Break_Out_Category
+              const nestedData = d3.groups(
+                filteredData,
+                (d) => d.breakOutCategory
+              );
+
+              const radial_plot = svg.append("g").attr("class", "radial_plot");
+              // Define the title text using selected disease and state
+              const titleText = `Prevalence of ${selectedDisease} in ${clicked_state} by demographics`;
+              // Add the title to the radial_plot group
+              radial_plot
+                .append("text")
+                .attr("class", "chart-title") // class for styling
+                .attr("x", 20) // Center the title horizontally
+                .attr("y", -height / 2 + 20) // Position the title above the chart
+                .attr("text-anchor", "middle") // Center the text
+                .attr("font-size", "14px") // Adjust the font size as needed
+                .attr("fill", "white") // Set the color of the title
+                .text(titleText); // Set the text content of the title
+              // Define the values  to show as reference circles (e.g., 25%, 50%, 75%, 100%)
+              const circleValues = calculatePercentiles(filteredData);
+
+              // Add reference circles to the radial_plot group
+              radial_plot
+                .selectAll(".reference-circle")
+                .data(circleValues)
+                .enter()
+                .append("circle")
+                .attr("class", "reference-circle")
+                .attr("r", (d) => radialScale(d)) // Use the radial scale to set the radius
+                .attr("fill", "none")
+                .attr("stroke", "#ccc")
+                .attr("stroke-dasharray", "4 2"); // Dashed circles for better visibility
+              const percentLabels = ["25%", "50%", "75%"];
+              // Add text labels to indicate the value of each reference circle
+              radial_plot
+                .selectAll(".circle-label")
+                .data(circleValues)
+                .enter()
+                .append("text")
+                .attr("class", "circle-label")
+                .attr("x", 0) // Position the labels at the top of the chart
+                .attr("y", (d) => -radialScale(d)) // Place label at the top edge of each circle
+                .attr("dy", "-0.35em") // Adjust label position slightly
+                .attr("text-anchor", "middle")
+                .attr("fill", "grey") // Change the color of the text
+                .attr("font-size", "10px")
+                .text((d, i) => percentLabels[i]); // Show the data value
+              // Create bars for each Break_Out_Category
+              nestedData.forEach((data, id) => {
+                const category = data[0];
+                const values = data[1];
+                const group = radial_plot
+                  .append("g")
+                  .attr("class", "bar-group")
+                  .attr("id", category)
+                  .attr("data-breakoutcategory", category);
+
+                group
+                  .selectAll("path")
+                  .data(values)
+                  .enter()
+                  .append("path")
+                  .attr("class", "radial-bars")
+                  .attr("fill", (d) => colorScale(d.breakOutCategory)) // Color scale based on category
+                  .attr("data-breakoutcategory", (d) => d.breakOutCategory)
+                  .attr(
+                    "d",
+                    d3
+                      .arc()
+                      .innerRadius(innerRadius)
+                      .outerRadius((d) => radialScale(d.dataValue))
+                      .startAngle((d) => angleScale(d.breakOut))
+                      .endAngle(
+                        (d) =>
+                          angleScale(d.breakOut) + angleScale.bandwidth() - 0.02
+                      )
+                      .padAngle(0.1)
+                      .padRadius(innerRadius)
+                  )
+                  .on("mouseover", function (event, d) {
+                    const hoveredCategory = d3
+                      .select(this)
+                      .attr("data-breakoutcategory");
+
+                    const hovered_break_out_bars = d3
+                      .selectAll(".radial-bars")
+                      .filter(function (d) {
+                        // Accessing the __data__ property to check the breakOutCategory
+                        return d.breakOutCategory === hoveredCategory;
+                      });
+                    const non_hovered_break_out_bars = d3
+                      .selectAll(".radial-bars")
+                      .filter(function (d) {
+                        // Accessing the __data__ property to check the breakOutCategory
+                        return d.breakOutCategory != hoveredCategory;
+                      });
+
+                    // Highlight the hovered bar with a stroke and increase opacity
+                    hovered_break_out_bars
+                      .transition()
+                      .duration(200)
+                      .attr("opacity", 1)
+                      .attr(
+                        "stroke",
+                        "white" // Add black stroke for the highlighted bar
+                      )
+                      .attr("stroke-width", 2);
+                    non_hovered_break_out_bars
+                      .transition()
+                      .duration(200)
+                      .attr("opacity", 0.2)
+                      .attr(
+                        "stroke",
+                        "none" // Add black stroke for the highlighted bar
+                      )
+                      .attr("stroke-width", 0);
+                    // Show data value on the bar
+                    d3.select(this)
+                      .append("title")
+                      .text((d) => `${d.breakOutCategory}: ${d.dataValue}%`);
+                  })
+                  .on("mouseout", function () {
+                    // Restore original opacity and remove stroke
+                    d3.selectAll(".radial-bars")
+                      .transition()
+                      .duration(200)
+                      .attr("opacity", 1)
+                      .attr("stroke", "none")
+                      .attr("stroke-width", 0);
+                  });
+
+                // Function to wrap text into multiple lines
+                function wrapText(text, x, y, maxWidth) {
+                  const words = text.split(" ");
+                  let line = "";
+                  const lineHeight = 12; // Adjust as necessary for vertical spacing
+
+                  // Create a group to hold the text elements
+                  const textGroup = svg.append("g");
+
+                  words.forEach((word) => {
+                    const testLine = line + word + " ";
+                    const testText = textGroup
+                      .append("text")
+                      .attr("font-size", "10px")
+                      .attr("fill", "none") // Ensure text is white
+                      .text(testLine);
+
+                    // Check if the current line exceeds the max width
+                    if (
+                      testText.node().getComputedTextLength() > maxWidth &&
+                      line
+                    ) {
+                      // If it exceeds, append the line to the SVG
+                      textGroup
+                        .append("text")
+                        .attr("x", x)
+                        .attr("y", y)
+                        .attr("text-anchor", "middle")
+                        .attr("alignment-baseline", "middle") // Centers vertically
+                        .attr("font-size", "10px")
+                        .attr("fill", "white")
+                        .text(line);
+                      line = word + " "; // Start a new line with the current word
+                      y += lineHeight; // Move down for the next line
+                    } else {
+                      line = testLine; // Keep adding to the current line
+                    }
+                  });
+
+                  // Append the last line if there's any text remaining
+                  if (line) {
+                    textGroup
+                      .append("text")
+                      .attr("x", x)
+                      .attr("y", y)
+                      .attr("text-anchor", "middle")
+                      .attr("alignment-baseline", "middle") // Centers vertically
+                      .attr("font-size", "10px")
+                      .attr("fill", "white")
+                      .text(line);
+                  }
+                }
+                // Add labels and connecting lines
+                values.forEach((d) => {
+                  const angle =
+                    angleScale(d.breakOut) + angleScale.bandwidth() / 2 - 1.6; // Middle of the bar
+                  const xLabel = Math.cos(angle) * (outerRadius + 20); // X position for the label
+                  const yLabel = Math.sin(angle) * (outerRadius + 20); // Y position for the label
+
+                  // Draw connecting lines
+                  svg
+                    .append("line")
+                    .attr("x1", angle) // Outer radius end point of the bar
+                    .attr("y1", angle) // Outer radius end point of the bar
+                    .attr("x2", xLabel - 10) // Label position
+                    .attr("y2", yLabel) // Label position
+                    .attr("stroke", colorScale(d.breakOutCategory)) // Same color as the bar
+                    .attr("stroke-opacity", 0.5)
+                    .attr("stroke-width", 1.5); // Line width
+                  // Append text labels
+
+                  wrapText(d.breakOut, xLabel, yLabel, 60);
+                });
+              });
+            }
+            // Initial chart load with COPD data
+            updateChart(clicked_state, "COPD");
+
+            // Event listener for dropdown selection
+            d3.select("#disease-select").on("change", function () {
+              const selectedDisease = d3.select(this).property("value");
+              updateChart(clicked_state, selectedDisease);
+            });
+          },
+
+          // Show tooltip on hover
+          mouseover: function (e) {
+            if (previouslyClickedState === null) {
+              const layer = e.target;
+              const tooltipContent = `<strong>${
+                feature.properties.State
+              }</strong><br>Prevelance Index: ${Math.round(
+                feature.properties.Data_value,
+                2
+              )}`;
+              layer
+                .bindTooltip(tooltipContent, {
+                  permanent: false,
+                  direction: "top",
+                  className: "leaflet-tooltip",
+                })
+                .openTooltip();
+              layer.setStyle(highlightStyle);
+            }
+          },
+
+          // Reset highlight when mouse leaves
+          mouseout: function (e) {
+            if (previouslyClickedState === null) {
+              const layer = e.target;
+              layer.closeTooltip();
+
+              resetHighlight(layer);
+            }
+          },
+        });
+      }
+
+      function convertArrayToGeoJSON(dataArray) {
+        const geojson = {
+          type: "FeatureCollection",
+          features: dataArray.map((item) => ({
+            type: "Feature",
+            properties: {
+              State: item.State,
+              Data_value: item.Data_value,
+              Year: item.Year,
+            },
+            geometry: item.geometry,
+          })),
+        };
+        return geojson;
+      }
+
+      // Call the function to get GeoJSON
+      const geojsonData = convertArrayToGeoJSON(filteredResults);
+      // Add an event listener to hide the loading spinner once the tile layer finishes loading
+      map.on("load", () => {
+        document.getElementById("map-loading").style.display = "none";
+      });
+      // Add GeoJSON layer
+      const geojsonLayer = L.geoJson(geojsonData, {
+        simplifyFactor: 0.8,
+        renderer: L.canvas(),
+        style: style,
+        onEachFeature: onEachFeature,
+      }).addTo(map);
+      // Create a legend control
+      const map_legend = L.control({ position: "topright" });
+
+      map_legend.onAdd = function (map) {
+        const div = L.DomUtil.create("div", "info legend");
+
+        const minValue = 149; // Minimum value from your data
+        const maxValue = 300; // Maximum value from your data
+        const numberOfSteps = 4; // Number of gradient steps
+
+        // Create a single line for the legend
+        const gradient = d3
+          .scaleLinear()
+          .domain([minValue, maxValue])
+          .range(["#0868ac", "#43a2ca", "#7bccc4", "#bae4bc", "#f0f9e8"]);
+
+        // Create a horizontal gradient legend line
+        const legendWidth = 200; // Width of the legend
+        const legendHeight = 30; // Height of the legend
+        const svg = d3
+          .select(div)
+          .append("svg")
+          .attr("width", legendWidth)
+          .attr("height", legendHeight)
+          .style("background", "rgba(0,0,0,0.5)");
+
+        // Create a gradient rectangle
+        const defs = svg.append("defs");
+        const linearGradient = defs
+          .append("linearGradient")
+          .attr("id", "linear-gradient")
+          .attr("x1", "0%")
+          .attr("x2", "100%");
+
+        // Add color stops
+        gradient.range().forEach((color, i) => {
+          linearGradient
+            .append("stop")
+            .attr("offset", (i / numberOfSteps) * 100 + "%")
+            .attr("stop-color", color);
+        });
+
+        // Add the gradient rectangle
+        svg
+          .append("rect")
+          .attr("width", "100%")
+          .attr("height", "40%")
+          .style("fill", "url(#linear-gradient)");
+
+        // Add ticks
+        const tickValues = d3
+          .range(minValue, maxValue + 1, (maxValue - minValue) / numberOfSteps)
+          .map((value) => Math.round(value / 5) * 5);
+        const tickOffset = legendWidth / numberOfSteps;
+
+        tickValues.forEach((value, i) => {
+          let xPosition;
+
+          // Set custom x positions for the first and last ticks
+          if (i === 0) {
+            xPosition = 10;
+          } else if (i === tickValues.length - 1) {
+            xPosition = tickOffset * i - 10;
+          } else {
+            xPosition = tickOffset * i;
+          }
+          svg
+            .append("line")
+            .attr("x1", tickOffset * i + 2)
+            .attr("x2", tickOffset * i + 2)
+            .attr("y1", legendHeight - 19)
+            .attr("y2", legendHeight - 12)
+            .attr("stroke", "white")
+            .attr("stroke-width", 2);
+
+          svg
+            .append("text")
+            .attr("x", xPosition)
+            .attr("y", legendHeight - 1)
+            .attr("text-anchor", "middle")
+            .attr("fill", "white")
+            .text(value);
+        });
+
+        return div;
+      };
+
+      // Add the legend to the map
+      map_legend.addTo(map);
+
+      //------------------------------------------------------------------------------------------------------------------------------------
+      //------------------------------------------------------------------------------------------------------------------------------------
+      // GROUPED BAR CHART SCRIPT
+      //
+      //
+      //
+      const top_10_states = [
+        "West Virginia",
+        "Kentucky",
+        "Tennessee",
+        "Alabama",
+        "Michigan",
+        "Oklahoma",
+        "Arkansas",
+        "Ohio",
+        "Indiana",
+        "Maine",
+      ];
+
+      function get_disease_state_data(states) {
+        let filteredData = [];
+
+        // Loop through each batch and extract necessary information
+        tab.batches.forEach((batch) => {
+          // Get the children arrays (these are the column values)
+          const children = batch.data.children;
+
+          const state_Col = children[1]; //  index 0 is the 'State' column
+          const topic_Col = children[3]; //  index 1 is the 'Topic' column
+          const breakOut_Col = children[6]; //  index 2 is 'Break_Out'
+          const breakOutCategory_Col = children[7]; //  index 3 is 'Break_Out_Category'
+          const dataValue_Col = children[8]; //  index 4 is 'Data_value'
+          const response_Col = children[5]; //  index 5 is 'Response'
+
+          for (let i = 0; i < topic_Col.length; i++) {
+            const state = state_Col.values[i];
+            const topic = topic_Col.values[i];
+            const breakOut = breakOut_Col.values[i];
+            const breakOutCategory = breakOutCategory_Col.values[i];
+            const dataValue = dataValue_Col.values[i];
+            const response = response_Col.values[i];
+            // Filter data for the clicked state and 'COPD' topic, Response = 'Yes'
+            if (
+              [
+                "COPD",
+                "Cardiovascular Disease",
+                "Arthritis",
+                "Kidney",
+                "Depression",
+              ].includes(topic) &&
+              response === "Yes" &&
+              states.includes(state) &&
+              breakOut === "Overall"
+            ) {
+              filteredData.push({
+                state,
+                topic,
+                dataValue,
+              });
+            }
+          }
+        });
+        return filteredData;
+      }
+
+      const data_ex = get_disease_state_data(top_10_states);
+
+      // Function to group by state and topic and calculate mean
+      const calculateMeanDataValue = (data) => {
+        // Create a dictionary to store the sum and count for each state-topic combination
+        const stateTopicMap = {};
+
+        data.forEach((item) => {
+          const key = `${item.state}-${item.topic}`;
+          if (!stateTopicMap[key]) {
+            stateTopicMap[key] = { sum: 0, count: 0 };
+          }
+          stateTopicMap[key].sum += item.dataValue;
+          stateTopicMap[key].count += 1;
+        });
+
+        // Calculate mean for each state-topic combination
+        const result = [];
+        for (const [key, value] of Object.entries(stateTopicMap)) {
+          const [state, topic] = key.split("-");
+          const meanDataValue = value.sum / value.count;
+          result.push({
+            state,
+            topic,
+            dataValue: parseFloat(meanDataValue.toFixed(2)),
+          });
+        }
+
+        return result;
+      };
+
+      // Call the function and log the result
+      const data = calculateMeanDataValue(data_ex);
+      const national_median = calculateMeanDataValue(
+        get_disease_state_data(["All States, DC and Territories (median) **"])
+      );
+
+      // Set dimensions and margins for the chart
+      const margin = { top: 60, right: 20, bottom: 40, left: 80 };
+      const grp_parent = document.getElementById("grp_state");
+      const grp_width = grp_parent.offsetWidth - margin.left - margin.right;
+      // const width = 800 - margin.left - margin.right;
+      const grp_height = 500 - margin.top - margin.bottom;
+
+      const grp_state_svg = d3
+        .select("#grp_state")
+        .append("svg")
+        .attr("width", grp_width + margin.left + margin.right)
+        .attr("height", grp_height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      // Group by State and Topic
+
+      const topics = [...new Set(data.map((d) => d.topic))];
+
+      // Define x and y scales
+      const x0 = d3
+        .scaleBand()
+        .domain(top_10_states)
+        .range([0, grp_width])
+        .padding(0.2);
+
+      const x1 = d3
+        .scaleBand()
+        .domain(topics)
+        .range([0, x0.bandwidth()])
+        .padding(0.05);
+
+      const y = d3
+        .scaleLinear()
+        .domain([0, d3.max(data, (d) => d.dataValue)])
+        .nice()
+        .range([grp_height, 0]);
+
+      // Define color scale
+      const color = d3
+        .scaleOrdinal()
+        .domain(topics)
+        .range(["#1f78b4", "#33a02c", "#a6cee3", "#b2df8a", "#fb9a99"]);
+
+      // Add x-axis
+      grp_state_svg
+        .append("g")
+        .attr("class", "x-axis-tick")
+        .attr("stroke-width", 1)
+        .attr("transform", "translate(0," + grp_height + ")")
+        .call(d3.axisBottom(x0));
+      // Add x-axis label
+      grp_state_svg
+        .append("text")
+        .attr("class", "axis-label")
+        .attr("text-anchor", "middle") // Center the text
+        .attr("x", grp_width / 2) // Position it at the center of the x-axis
+        .attr("y", grp_height + 40) // Position it below the x-axis
+        .text("States");
+
+      // Add y-axis
+      grp_state_svg
+        .append("g")
+        .attr("class", "y-axis-tick")
+        .call(d3.axisLeft(y).ticks(5))
+        .append("text")
+        .attr("x", -150)
+        .attr("y", -40)
+        .attr("fill", "white")
+        .attr("transform", "rotate(-90)")
+        .text("Prevalence (%)")
+        .attr("class", "axis-label");
+
+      // Add bars
+      const stateGroups = grp_state_svg
+        .selectAll(".state")
+        .data(data)
+        .enter()
+        .append("g")
+        .attr("class", "state")
+        .attr("transform", (d) => "translate(" + x0(d.state) + ",0)");
+
+      // Create the bars
+      const bars = stateGroups
+        .selectAll("rect")
+        .data((d) => data.filter((dd) => dd.state === d.state))
+        .enter()
+        .append("rect")
+        .attr("x", (d) => x1(d.topic) + 5 / 2)
+        .attr("y", (d) => y(d.dataValue))
+        .attr("width", x1.bandwidth() - 5)
+        .attr("height", (d) => grp_height - y(d.dataValue))
+        .attr("fill", (d) => color(d.topic))
+        .attr("class", "bar");
+      // Draw lines for national median values
+      national_median.forEach((median) => {
+        const yPosition = y(median.dataValue); // Get the y position based on data value
+        const topic = median.topic;
+
+        // Append a line
+        grp_state_svg
+          .append("line")
+          .attr("x1", 0) // Starting x position
+          .attr("y1", yPosition) // y position of the line
+          .attr("x2", x0.range()[1]) // Ending x position, span across the width of the chart
+          .attr("y2", yPosition) // y position (same as y1 for horizontal line)
+          .attr("stroke", color(topic)) // Use the same color as the disease
+          .attr("stroke-width", 2) // Line width
+          .attr("opacity", 0)
+          .attr("data-topic", topic)
+          .attr("stroke-dasharray", "4, 2") // Optional: dashed line style
+          .attr("class", "national-median-line")
+          .append("title") // Add tooltip for better UX
+          .text(`National Median: ${median.dataValue} for ${topic}`);
+      });
+      // Append text to display data values
+      const dataText = stateGroups
+        .selectAll(".data-label")
+        .data((d) => data.filter((dd) => dd.state === d.state))
+        .enter()
+        .append("text")
+        .attr("class", "data-label")
+        .attr("x", (d) => x1(d.topic) + x1.bandwidth() / 2)
+        .attr("y", (d) => y(d.dataValue) - 5) // Position above the bar
+        .attr("text-anchor", "middle")
+        .text((d) => d.dataValue)
+        .style("opacity", 0); // Initially hidden
+
+      // Add hover event listeners
+      bars
+        .on("mouseover", function (event, d) {
+          const topic = d.topic;
+          d3.selectAll(".national-median-line")
+            .filter(function () {
+              return d3.select(this).attr("data-topic") === topic;
+            })
+            .style("opacity", 1);
+          // Highlight all bars for the same state
+          d3.selectAll(".state")
+            .selectAll("rect")
+            .filter((dd) => dd.topic === topic)
+            .style("opacity", 1)
+            .attr("fill", (dd) => d3.rgb(color(dd.topic))); // Brighten color
+
+          // Reduce opacity of other state bars
+          d3.selectAll(".state")
+            .selectAll("rect")
+            .filter((dd) => dd.topic !== topic)
+            .style("opacity", 0.1)
+            .attr("fill", (dd) => "grey"); // Dim other states
+
+          // Show data values for the hovered state
+          d3.selectAll(".data-label")
+            .filter((dd) => dd.topic === topic)
+            .style("opacity", 1); // Show data values
+        })
+        .on("mouseout", function (event, d) {
+          const topic = d.topic;
+          d3.selectAll(".national-median-line")
+            .filter(function () {
+              return d3.select(this).attr("data-topic") === topic;
+            })
+            .style("opacity", 0);
+          // Reset all bars to original opacity
+          d3.selectAll(".state")
+            .selectAll("rect")
+            .style("opacity", 1) // Reset opacity to full
+            .attr("fill", (dd) => color(dd.topic)); // Reset color
+
+          // Hide data values
+          d3.selectAll(".data-label").style("opacity", 0); // Hide data values
+        });
+
+      const legendContainer = d3
+        .select("#legend-container")
+        .style("display", "flex")
+        .style("flex-wrap", "wrap"); // Allows items to wrap if needed
+
+      // Append each legend item as a div within the legendContainer
+      const legend = legendContainer
+        .selectAll(".legend-item")
+        .data(topics)
+        .enter()
+        .append("div")
+        .attr("class", "legend-item")
+        .style("display", "flex")
+        .style("align-items", "center")
+        .style("margin", "0 15px 10px 0"); // Spacing between legend items
+
+      // Add the color box for each legend item
+      legend
+        .append("div")
+        .style("width", "18px")
+        .style("height", "18px")
+        .style("background-color", (d) => color(d))
+        .style("margin-right", "8px"); // Spacing between color box and text
+
+      // Add the text label for each legend item
+      legend
+        .append("span")
+        .text((d) => (d === "Kidney" ? "Kidney disease" : d))
+        .style("color", "white"); // Adjust text color to stand out on a dark background
+      // Add a national average legend item with a dashed line inside
+      const nationalAverageLegend = legendContainer
+        .append("div")
+        .attr("class", "legend-item")
+        .style("display", "flex")
+        .style("align-items", "center")
+        .style("margin", "0 15px 10px 0"); // Spacing
+
+      // Add the box for the national average with a dashed line inside
+      const dashedBox = nationalAverageLegend
+        .append("div")
+        .style("width", "18px")
+        .style("height", "18px")
+        .style("position", "relative") // Position relative for inner line
+        .style("border", "2px solid white") // Solid border around the box
+        .style("margin-right", "8px"); // Spacing between box and label
+
+      // Add the inner dashed line
+      dashedBox
+        .append("div")
+        .style("position", "absolute")
+        .style("top", "50%")
+        .style("left", "0")
+        .style("width", "100%")
+        .style("border-top", "1px dashed white") // Dashed line inside
+        .style("transform", "translateY(-50%)"); // Center the line vertically
+
+      // Add the text label for the national average item
+      nationalAverageLegend
+        .append("span")
+        .text("National Average")
+        .style("color", "white");
+      // Adjust the y position of the x-axis to prevent overlap
+      grp_state_svg
+        .select(".x-axis") // Assuming your x-axis has this class
+        .attr("transform", `translate(0, ${grp_height + 50})`); // Move x-axis further down
+
+      //
+      //------------------------------------------------------------------------------------------------------------------------------------
+      /// Physical Activity Heat Map Script
+
+      function get_exercise_state_data() {
+        let filteredData = [];
+        // Loop through each batch and extract necessary information
+        tab.batches.forEach((batch) => {
+          // Get the children arrays (these are the column values)
+          const children = batch.data.children;
+
+          const state_Col = children[1]; //  index 0 is the 'State' column
+          const topic_Col = children[3]; //  index 1 is the 'Topic' column
+          const breakOut_Col = children[6]; //  index 2 is 'Break_Out'
+          const breakOutCategory_Col = children[7]; //  index 3 is 'Break_Out_Category'
+          const dataValue_Col = children[8]; //  index 4 is 'Data_value'
+          const response_Col = children[5]; //  index 5 is 'Response'
+
+          for (let i = 0; i < topic_Col.length; i++) {
+            const state = state_Col.values[i];
+            const topic = topic_Col.values[i];
+            const breakOut = breakOut_Col.values[i];
+            const breakOutCategory = breakOutCategory_Col.values[i];
+            const dataValue = dataValue_Col.values[i];
+            const response = response_Col.values[i];
+            // Filter data for the clicked state and 'COPD' topic, Response = 'Yes'
+            if (
+              topic === "Exercise" &&
+              response === "Yes" &&
+              top_10_states.includes(state) &&
+              breakOutCategory === "Household Income"
+            ) {
+              filteredData.push({
+                state,
+                breakOut,
+                dataValue,
+              });
+            }
+          }
+        });
+        return filteredData;
+      }
+      const calculateMeanPhysValue = (data) => {
+        // Create a dictionary to store the sum and count for each state-topic combination
+        const stateTopicMap = {};
+
+        data.forEach((item) => {
+          const key = `${item.state}_${item.breakOut}`;
+          if (!stateTopicMap[key]) {
+            stateTopicMap[key] = { sum: 0, count: 0 };
+          }
+          stateTopicMap[key].sum += item.dataValue;
+          stateTopicMap[key].count += 1;
+        });
+
+        // Calculate mean for each state-topic combination
+        const result = [];
+        for (const [key, value] of Object.entries(stateTopicMap)) {
+          const [state, breakOut] = key.split("_");
+          const meanDataValue = value.sum / value.count;
+          result.push({
+            state,
+            breakOut,
+            dataValue: parseFloat(meanDataValue.toFixed(2)),
+          });
+        }
+
+        return result;
+      };
+      const phys_data = calculateMeanPhysValue(get_exercise_state_data());
+
+      // // Define margins and dimensions for the heatmap
+      const heatmap_margin = { top: 50, right: 20, bottom: 80, left: 100 };
+      const phys_parent = document.getElementById("physheatmap");
+      const phys_width =
+        phys_parent.offsetWidth - heatmap_margin.left - heatmap_margin.right;
+      const phys_height = 600 - heatmap_margin.top - heatmap_margin.bottom;
+
+      // Create the SVG container
+      const phys_svg = d3
+        .select("#physheatmap")
+        .append("svg")
+        .attr("width", phys_width + heatmap_margin.left + heatmap_margin.right)
+        .attr(
+          "height",
+          phys_height + heatmap_margin.top + heatmap_margin.bottom
+        )
+        .append("g")
+        .attr(
+          "transform",
+          `translate(${heatmap_margin.left},${heatmap_margin.top})`
+        );
+
+      // Set up scales for x (Household Income), y (State), and color (Data_value)
+      const incomeOrder = [
+        "Less than $15,000",
+        "$15,000 - $24,999",
+        "$25,000 - $34,999",
+        "$35,000 - $49,999",
+        "$50,000+",
+      ];
+      const xScale = d3
+        .scaleBand()
+        .domain(incomeOrder) // Unique household incomes
+        .range([0, phys_width])
+        .padding(0);
+
+      const yScale = d3
+        .scaleBand()
+        .domain(top_10_states.toReversed()) // Unique states
+        .range([phys_height, 0])
+        .padding(0);
+
+      const colorScale = d3
+        .scaleSequential()
+        .domain([0, d3.max(phys_data, (d) => d.dataValue)]) // Domain based on data values
+        .interpolator(d3.interpolateBlues); // Color gradient for physical activity
+
+      // Add X axis (Household Income)
+      phys_svg
+        .append("g")
+        .attr("transform", `translate(0, ${phys_height})`)
+        .attr("class", "x-axis-tick")
+        .call(d3.axisBottom(xScale))
+        .selectAll("text")
+        .style("text-anchor", "middle");
+
+      // Add Y axis (State)
+      phys_svg
+        .append("g")
+        .call(d3.axisLeft(yScale))
+        .attr("class", "y-axis-tick");
+      // Add X axis label (Household Income)
+      phys_svg
+        .append("text")
+        .attr("class", "axis-label")
+        .attr("text-anchor", "middle") // Center the text
+        .attr("x", phys_width / 2) // Position it at the center of the x-axis
+        .attr("y", phys_height + 40) // Position it below the x-axis
+        .text("Household Income");
+
+      // Add Y axis label (State)
+      phys_svg
+        .append("text")
+        .attr("class", "axis-label")
+        .attr("text-anchor", "middle") // Center the text
+        .attr("transform", "rotate(-90)") // Rotate text for y-axis
+        .attr("y", -80) // Adjust as necessary to position above the y-axis
+        .attr("x", -phys_height / 2) // Position it vertically centered
+        .text("States");
+      // Add the heatmap tiles for the physical activity heatmap
+      const physTiles = phys_svg
+        .selectAll("rect")
+        .data(phys_data)
+        .enter()
+        .append("rect")
+        .attr("x", (d) => xScale(d.breakOut))
+        .attr("y", (d) => yScale(d.state))
+        .attr("width", xScale.bandwidth())
+        .attr("height", yScale.bandwidth())
+        .style("fill", (d) => colorScale(d.dataValue))
+        .style("opacity", 1)
+        .on("mouseover", function (event, d) {
+          highlightColumn(d.breakOut); // Highlight corresponding column in both heatmaps
+        })
+        .on("mouseout", function () {
+          resetHighlighttile(); // Reset highlight on both heatmaps
+        });
+      function highlightColumn(incomeColumn) {
+        // Highlight the hovered column in the vegetable heatmap
+        vegTiles
+          .filter((tile) => tile.breakOut !== incomeColumn)
+          .transition()
+          .style("opacity", 0.3); // Reduce opacity of non-hovered columns
+        vegTiles
+          .filter((tile) => tile.breakOut === incomeColumn)
+          .transition()
+          .style("opacity", 1); // Keep hovered column fully opaque
+
+        // Highlight the corresponding column in the physical activity heatmap
+        physTiles
+          .filter((tile) => tile.breakOut !== incomeColumn)
+          .transition()
+          .style("opacity", 0.3);
+        physTiles
+          .filter((tile) => tile.breakOut === incomeColumn)
+          .transition()
+          .style("opacity", 1);
+        // Show data values for the hovered column in the vegetable heatmap
+        veg_svg
+          .selectAll(".veg-data-text")
+          .data(veg_data.filter((tile) => tile.breakOut === incomeColumn))
+          .enter()
+          .append("text")
+          .attr("class", "veg-data-text")
+          .attr(
+            "x",
+            (tile) => veg_xScale(tile.breakOut) + veg_xScale.bandwidth() / 2
+          )
+          .attr(
+            "y",
+            (tile) => veg_yScale(tile.state) + veg_yScale.bandwidth() / 2
+          )
+          .attr("text-anchor", "middle")
+          .attr("dy", ".35em")
+          .text((tile) => tile.dataValue) // Display data values
+          .style("fill", "white")
+          .style("font-size", "12px")
+          .style("font-weight", "bold")
+          .style("pointer-events", "none");
+
+        // Show data values for the hovered column in the physical activity heatmap
+        phys_svg
+          .selectAll(".phys-data-text")
+          .data(phys_data.filter((tile) => tile.breakOut === incomeColumn))
+          .enter()
+          .append("text")
+          .attr("class", "phys-data-text")
+          .attr("x", (tile) => xScale(tile.breakOut) + xScale.bandwidth() / 2)
+          .attr("y", (tile) => yScale(tile.state) + yScale.bandwidth() / 2)
+          .attr("text-anchor", "middle")
+          .attr("dy", ".35em")
+          .text((tile) => tile.dataValue) // Display data values
+          .style("fill", "white")
+          .style("font-size", "12px")
+          .style("font-weight", "bold")
+          .style("pointer-events", "none");
+      }
+
+      function resetHighlighttile() {
+        // Reset opacity in both heatmaps
+        vegTiles.transition().style("opacity", 1);
+        physTiles.transition().style("opacity", 1);
+        // Remove the text labels from both heatmaps
+        veg_svg.selectAll(".veg-data-text").remove();
+        phys_svg.selectAll(".phys-data-text").remove();
+      }
+
+      // Add title
+      phys_svg
+        .append("text")
+        .attr("x", phys_width / 2)
+        .attr("y", -25)
+        .attr("text-anchor", "middle")
+        .attr("class", "chart-title")
+        .text("Physical Activity % by Household Income and State");
+
+      // Add color legend
+      const phys_legend = phys_svg
+        .append("g")
+        .attr("class", "legend")
+        .attr("transform", `translate(${phys_width - 20}, 0)`);
+
+      const legendHeight = 200;
+      const legendWidth = 20;
+
+      const legendScale = d3
+        .scaleLinear()
+        .domain(colorScale.domain())
+        .range([legendHeight, 0]);
+
+      phys_legend
+        .selectAll("rect")
+        .data(d3.range(legendHeight))
+        .enter()
+        .append("rect")
+        .attr("y", (d) => d)
+        .attr("width", legendWidth)
+        .attr("height", 1)
+        .style("fill", (d) => colorScale(legendScale.invert(d)));
+
+      phys_legend
+        .append("g")
+        .attr("transform", `translate(${legendWidth}, 0)`)
+        .call(d3.axisRight(legendScale).ticks(5));
+
+      //------------------------------------------------------------------------------------------------------------------------------------
+      //------------------------------------------------------------------------------------------------------------------------------------
+      /// Nutrition Heat Map Script
+
+      function get_veg_state_data() {
+        let filteredData = [];
+        // Loop through each batch and extract necessary information
+        tab.batches.forEach((batch) => {
+          // Get the children arrays (these are the column values)
+          const children = batch.data.children;
+
+          const state_Col = children[1]; //  index 0 is the 'State' column
+          const topic_Col = children[3]; //  index 1 is the 'Topic' column
+          const breakOut_Col = children[6]; //  index 2 is 'Break_Out'
+          const breakOutCategory_Col = children[7]; //  index 3 is 'Break_Out_Category'
+          const dataValue_Col = children[8]; //  index 4 is 'Data_value'
+          const response_Col = children[5]; //  index 5 is 'Response'
+
+          for (let i = 0; i < topic_Col.length; i++) {
+            const state = state_Col.values[i];
+            const topic = topic_Col.values[i];
+            const breakOut = breakOut_Col.values[i];
+            const breakOutCategory = breakOutCategory_Col.values[i];
+            const dataValue = dataValue_Col.values[i];
+            const response = response_Col.values[i];
+            // Filter data for the clicked state and 'COPD' topic, Response = 'Yes'
+            if (
+              topic === "Fruits and Vegetables - Behavior" &&
+              top_10_states.includes(state) &&
+              breakOutCategory === "Income"
+            ) {
+              filteredData.push({
+                state,
+                breakOut,
+                dataValue,
+              });
+            }
+          }
+        });
+        return filteredData;
+      }
+      const calculateMeanVegValue = (data) => {
+        // Create a dictionary to store the sum and count for each state-topic combination
+        const stateTopicMap = {};
+
+        data.forEach((item) => {
+          const key = `${item.state}_${item.breakOut}`;
+          if (!stateTopicMap[key]) {
+            stateTopicMap[key] = { sum: 0, count: 0 };
+          }
+          stateTopicMap[key].sum += item.dataValue;
+          stateTopicMap[key].count += 1;
+        });
+
+        // Calculate mean for each state-topic combination
+        const result = [];
+        for (const [key, value] of Object.entries(stateTopicMap)) {
+          const [state, breakOut] = key.split("_");
+          const meanDataValue = value.sum / value.count;
+          result.push({
+            state,
+            breakOut,
+            dataValue: parseFloat(meanDataValue.toFixed(2)),
+          });
+        }
+
+        return result;
+      };
+
+      const veg_data = calculateMeanVegValue(get_veg_state_data());
+
+      // // Define margins and dimensions for the heatmap
+
+      const veg_parent = document.getElementById("vegheatmap");
+      const veg_width =
+        veg_parent.offsetWidth - heatmap_margin.left - heatmap_margin.right;
+      const veg_height = 600 - heatmap_margin.top - heatmap_margin.bottom;
+      // Create the SVG container
+      const veg_svg = d3
+        .select("#vegheatmap")
+        .append("svg")
+        .attr("width", veg_width + heatmap_margin.left + heatmap_margin.right)
+        .attr("height", veg_height + heatmap_margin.top + heatmap_margin.bottom)
+        .append("g")
+        .attr(
+          "transform",
+          `translate(${heatmap_margin.left},${heatmap_margin.top})`
+        );
+
+      // Set up scales for x (Household Income), y (State), and color (Data_value)
+
+      const veg_xScale = d3
+        .scaleBand()
+        .domain(incomeOrder) // Unique household incomes
+        .range([0, veg_width])
+        .padding(0);
+
+      const veg_yScale = d3
+        .scaleBand()
+        .domain(top_10_states.toReversed()) // Unique states
+        .range([veg_height, 0])
+        .padding(0);
+
+      const veg_colorScale = d3
+        .scaleSequential()
+        .domain([0, d3.max(veg_data, (d) => d.dataValue)]) // Domain based on data values
+        .interpolator(d3.interpolateBlues); // Color gradient for physical activity
+
+      // Add X axis (Household Income)
+      veg_svg
+        .append("g")
+        .attr("transform", `translate(0, ${veg_height})`)
+        .call(d3.axisBottom(veg_xScale))
+        .attr("class", "x-axis-tick")
+        .selectAll("text")
+        .style("text-anchor", "middle");
+
+      // Add Y axis (State)
+      veg_svg
+        .append("g")
+        .call(d3.axisLeft(veg_yScale))
+        .attr("class", "y-axis-tick");
+      // Add X axis label (Household Income)
+      veg_svg
+        .append("text")
+        .attr("class", "axis-label")
+        .attr("text-anchor", "middle") // Center the text
+        .attr("x", veg_width / 2) // Position it at the center of the x-axis
+        .attr("y", veg_height + 40) // Position it below the x-axis
+        .text("Household Income");
+
+      // Add Y axis label (State)
+      veg_svg
+        .append("text")
+        .attr("class", "axis-label")
+        .attr("text-anchor", "middle") // Center the text
+        .attr("transform", "rotate(-90)") // Rotate text for y-axis
+        .attr("y", -80) //  to position above the y-axis
+        .attr("x", -veg_height / 2) // Position it vertically centered
+        .text("States");
+      // Add the heatmap tiles for the vegetable heatmap
+      const vegTiles = veg_svg
+        .selectAll("rect")
+        .data(veg_data)
+        .enter()
+        .append("rect")
+        .attr("x", (d) => veg_xScale(d.breakOut))
+        .attr("y", (d) => veg_yScale(d.state))
+        .attr("width", veg_xScale.bandwidth())
+        .attr("height", veg_yScale.bandwidth())
+        .style("fill", (d) => veg_colorScale(d.dataValue))
+        .style("opacity", 1)
+        .on("mouseover", function (event, d) {
+          highlightColumn(d.breakOut); // Highlight corresponding column in both heatmaps
+        })
+        .on("mouseout", function () {
+          resetHighlighttile(); // Reset highlight on both heatmaps
+        });
+
+      // Add title
+      veg_svg
+        .append("text")
+        .attr("x", veg_width / 2)
+        .attr("y", -25)
+        .attr("text-anchor", "middle")
+        .attr("class", "chart-title")
+        .text("Fruit/Vegetable Consumption % by Household Income and State");
+      // Add subheading
+      veg_svg
+        .append("text")
+        .attr("x", veg_width / 2)
+        .attr("y", -8) // Adjust this value to position the subheading below the title
+        .attr("text-anchor", "middle")
+        .attr("class", "chart-subheading") // Optional: Add a different class for styling
+        .text("(Consumption Less than 1 time a day)");
+      // Add color legend
+      const veg_legend = veg_svg
+        .append("g")
+        .attr("class", "legend")
+        .attr("transform", `translate(${veg_width - 20}, 0)`);
+
+      const veg_legendScale = d3
+        .scaleLinear()
+        .domain(veg_colorScale.domain())
+        .range([legendHeight, 0]);
+
+      veg_legend
+        .selectAll("rect")
+        .data(d3.range(legendHeight))
+        .enter()
+        .append("rect")
+        .attr("y", (d) => d)
+        .attr("width", legendWidth)
+        .attr("height", 1)
+        .style("fill", (d) => veg_colorScale(veg_legendScale.invert(d)));
+
+      veg_legend
+        .append("g")
+        .attr("transform", `translate(${legendWidth}, 0)`)
+        .call(d3.axisRight(veg_legendScale).ticks(5));
+
+      //------------------------------------------------------------------------------------------------------------------------------------
+      //------------------------------------------------------------------------------------------------------------------------------------
+      /// Chronic Disease Prevelance Time Series Script
+      function get_chronic_time_data() {
+        let filteredData = [];
+        // Loop through each batch and extract necessary information
+        tab.batches.forEach((batch) => {
+          // Get the children arrays (these are the column values)
+          const children = batch.data.children;
+
+          const year_Col = children[0]; //  index 0 is the 'year' column
+          const state_Col = children[1]; //  index 0 is the 'year' column
+          const topic_Col = children[3]; //  index 1 is the 'Topic' column
+          const breakOut_Col = children[6]; //  index 2 is 'Break_Out'
+          const breakOutCategory_Col = children[7]; //  index 3 is 'Break_Out_Category'
+          const dataValue_Col = children[8]; //  index 4 is 'Data_value'
+          const response_Col = children[5]; //  index 5 is 'Response'
+
+          for (let i = 0; i < topic_Col.length; i++) {
+            const year = year_Col.values[i];
+            const state = state_Col.values[i];
+            const topic = topic_Col.values[i];
+            const breakOutCategory = breakOutCategory_Col.values[i];
+            const dataValue = dataValue_Col.values[i];
+            const reponse = response_Col.values[i];
+            // Filter data for the clicked state and 'COPD' topic, Response = 'Yes'
+            if (
+              [
+                "Arthritis",
+                "COPD",
+                "Cardiovascular Disease",
+                "Kidney",
+                "Depression",
+              ].includes(topic) &&
+              breakOutCategory === "Overall" &&
+              state === "All States, DC and Territories (median) **" &&
+              reponse === "Yes"
+            ) {
+              filteredData.push({
+                year,
+                topic,
+                dataValue,
+              });
+            }
+          }
+        });
+        return filteredData;
+      }
+
+      const calculateMeanyearValue = (data) => {
+        // Create a dictionary to store the sum and count for each year-topic combination
+        const yearTopicMap = {};
+
+        data.forEach((item) => {
+          const key = `${item.year}_${item.topic}`;
+          if (!yearTopicMap[key]) {
+            yearTopicMap[key] = { sum: 0, count: 0 };
+          }
+          yearTopicMap[key].sum += item.dataValue;
+          yearTopicMap[key].count += 1;
+        });
+
+        // Calculate mean for each state-topic combination
+        const result = [];
+        for (const [key, value] of Object.entries(yearTopicMap)) {
+          const [year, topic] = key.split("_");
+          const meanDataValue = value.sum / value.count;
+          result.push({
+            year,
+            topic,
+            dataValue: parseFloat(meanDataValue.toFixed(2)),
+          });
+        }
+
+        return result;
+      };
+
+      const time_series_data = calculateMeanyearValue(get_chronic_time_data());
+
+      // const svg = document.getElementById("time-series");
+      const width = document.getElementById("time-series").offsetWidth - 100;
+      const height = 600,
+        padding = 50,
+        series_margin = { top: 20, right: 50, bottom: 50, left: 50 };
+
+      // Create the SVG container
+      const series_svg = d3
+        .select("#time-series")
+        .append("svg")
+        .attr("width", width + series_margin.left + series_margin.right)
+        .attr("height", height + series_margin.top + series_margin.bottom)
+        .append("g")
+        .attr(
+          "transform",
+          `translate(${series_margin.left},${series_margin.top})`
+        );
+
+      // Extract unique years and disease topics
+      const years = Array.from(
+        new Set(time_series_data.map((d) => d.year))
+      ).sort();
+      const diseases = Array.from(
+        new Set(time_series_data.map((d) => d.topic))
+      );
+
+      // Scales for positioning elements
+      const series_xScale = d3
+        .scalePoint()
+        .domain(years)
+        .range([padding, width - padding - 100]);
+
+      const series_yScale = d3
+        .scaleLinear()
+        .domain([0, 30])
+        .range([height - padding, padding]);
+
+      const series_colorScale = d3
+        .scaleOrdinal()
+        .domain(diseases)
+        .range(["blue", "red", "green", "purple"]);
+
+      // Add axes
+      const xAxis = d3.axisBottom(series_xScale);
+      const yAxis = d3.axisLeft(series_yScale);
+
+      series_svg
+        .append("g")
+        .attr("transform", `translate(0,${height - padding})`)
+        .call(xAxis)
+        .attr("class", "x-axis-tick");
+
+      series_svg
+        .append("g")
+        .attr("transform", `translate(${padding},0)`)
+        .call(yAxis)
+        .attr("class", "y-axis-tick");
+
+      // Title and axis labels
+      series_svg
+        .append("text")
+        .attr("x", width / 2)
+        .attr("y", 0 - margin.top / 2)
+        .attr("class", "chart-title")
+        .attr("text-anchor", "middle")
+        .text("Trends in Chronic Diseases and Depression");
+
+      series_svg
+        .append("text")
+        .attr("x", -height / 2)
+        .attr("y", -series_margin.left + 15)
+        .attr("class", "axis-label")
+        .attr("text-anchor", "middle")
+        .attr("transform", "rotate(-90)")
+        .text("Prevalence (%)");
+
+      series_svg
+        .append("text")
+        .attr("x", width / 2)
+        .attr("y", height - padding / 2 + series_margin.bottom / 2)
+        .attr("class", "axis-label")
+        .attr("text-anchor", "middle")
+        .text("Year");
+
+      // Plot lines and points for each disease topic
+      diseases.forEach((topic) => {
+        const topicData = time_series_data.filter((d) => d.topic === topic);
+        topicData.sort((a, b) => d3.ascending(a.year, b.year));
+
+        // Line generator for each topic
+        const line = d3
+          .line()
+          .x((d) => series_xScale(d.year))
+          .y((d) => series_yScale(d.dataValue));
+
+        const lineGroup = series_svg.append("g").attr("class", "line-group");
+
+        // Append path for each topic
+        lineGroup
+          .append("path")
+          .datum(topicData)
+          .attr("fill", "none")
+          .attr("stroke", color(topic))
+          .attr("stroke-width", 5)
+          .attr("class", "line")
+          .attr("d", line)
+          .on("mouseenter", function () {
+            d3.selectAll(".line").style("opacity", 0.1);
+            d3.selectAll(".point").style("opacity", 0.1); // Reduce opacity of all circles
+            d3.select(this).style("opacity", 1).style("stroke-width", 6);
+
+            // Show labels for all points on the line
+            lineGroup
+              .selectAll(".data-value")
+              .data(topicData.slice(1)) // Exclude the first data point if needed
+              .enter()
+              .append("text")
+              .attr("class", "data-value")
+              .attr("x", (d) => series_xScale(d.year) - 25)
+              .attr("y", (d) => series_yScale(d.dataValue) - 15)
+              .text((d) => d.dataValue.toFixed(2));
+
+            // Bring circles for this line to full opacity
+            lineGroup.selectAll(`.point-${topic}`).style("opacity", 1);
+          })
+          .on("mouseleave", function () {
+            d3.selectAll(".line").style("opacity", 1).style("stroke-width", 5);
+            d3.selectAll(".point").style("opacity", 1); // Restore opacity of all circles
+            d3.selectAll(".data-value").remove();
+          });
+
+        // Append circles for data points
+        lineGroup
+          .selectAll(`.point-${topic}`)
+          .data(topicData)
+          .enter()
+          .append("circle")
+          .attr("class", `point point-${topic}`)
+          .attr("cx", (d) => series_xScale(d.year))
+          .attr("cy", (d) => series_yScale(d.dataValue))
+          .attr("r", 6)
+          .attr("fill", color(topic));
+      });
+
+      // Legend
+      const series_legend = series_svg
+        .selectAll(".legend")
+        .data(diseases)
+        .enter()
+        .append("g")
+        .attr("class", "legend")
+        .attr(
+          "transform",
+          (d, i) => `translate(${width - 120}, ${padding + i * 20})`
+        );
+
+      series_legend
+        .append("rect")
+        .attr("width", 10)
+        .attr("height", 10)
+        .attr("fill", (d) => color(d));
+
+      series_legend
+        .append("text")
+        .attr("x", 15)
+        .attr("y", 10)
+        .style("text-anchor", "start")
+        .text((d) => (d === "Kidney" ? "kidney disease" : d));
+    </script>
+  </body>
+</html>
